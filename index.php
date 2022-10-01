@@ -98,7 +98,7 @@
     date_default_timezone_set("UTC");
     //echo date_default_timezone_get();
     $hfp = "../../hidden_file/";
-    for ($i=1; $i <= 2; $i++) {
+    for ($i=1; $i <= $max_orders; $i++) {
       if (file_exists($hfp ."Bestellung" . $i . ".json")) {  //Datei vorhanden?
         $file = json_decode(file_get_contents($hfp ."Bestellung" . $i . ".json"), true);
         $enddate = json_decode($file['enddate'], true);
@@ -164,7 +164,7 @@
                 'paid'=> false,
             ];
 
-            for ($i=1; $i <= 2; $i++) {
+            for ($i=1; $i <= $max_orders; $i++) {
               if (!file_exists($hfp ."Bestellung" . $i . ".json")) {  //Datei vorhanden?
                 file_put_contents($hfp ."Bestellung" . $i . ".json",json_encode($jsone)); //Was passiert wenn nicht in Datei sollte abgefragt werden ob vorhanden weiter oben.
                 ?>
