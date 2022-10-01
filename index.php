@@ -201,7 +201,7 @@
         <text id="user_info_output"> </text> <br>
 
         <input type="hidden" value="" id="adkey_text_input" name="adkey_text_input"> <br>
-        <label for="subscribe">Ich stimme zu, dass man mich über die angegebene E-Mail Kontakttieren darf.</label>
+        <label for="subscribe">Ich stimme zu, dass man mich über die angegebene E-Mail kontaktieren darf.</label>
         <input type="checkbox" id="subscribe_checkbox" name="subscribe" value="subscribe"> <br>
         <button type="submit" name="submit">Bestellen</button></box>
       </form>
