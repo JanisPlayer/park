@@ -89,9 +89,15 @@
 
   <content_box>
     <?php
-
+    $price = (30/(365/12));
+    $discount_price = (20/(365/12));
+    $discount_days = 90;
+    $max_days = 365;
+    $min_days = 14;
+    $max_orders = 5;
+    date_default_timezone_set("UTC");
+    //echo date_default_timezone_get();
     $hfp = "../../hidden_file/";
-
     for ($i=1; $i <= 2; $i++) {
       if (file_exists($hfp ."Bestellung" . $i . ".json")) {  //Datei vorhanden?
         $file = json_decode(file_get_contents($hfp ."Bestellung" . $i . ".json"), true);
@@ -99,7 +105,7 @@
 
         $paid = json_decode($file['paid'], true);
         if ($paid == true) { //Wegen dem break vielleicht etwas blöd plaziert.
-          echo "Es ist keine Bestellung bis zum " . date("d.m.Y",$enddate*86400) . " sie können es dennoch versuchen."; //H:i 2 Uhr sollte nachsehen wieso.
+          echo "Es ist keine Bestellung bis zum " . date("d.m.Y",$enddate*86400) . " sie können es danach versuchen."; //H:i 2 Uhr sollte nachsehen wieso.
           //return;
         }
 
@@ -115,14 +121,14 @@
     if(isset($_POST["submit"])){
 
       if ($paid == true) {
-        exit("Es ist keine Bestellung bis zum " . date("d.m.Y",$enddate*86400) . " sie können es dennoch versuchen."); //H:i 2 Uhr sollte nachsehen wieso.)
+        exit("Es ist keine Bestellung bis zum " . date("d.m.Y",$enddate*86400) . " sie können es danach versuchen."); //H:i 2 Uhr sollte nachsehen wieso.)
       }
 
       if (!isset($_POST["subscribe"])) {
         exit("Bitte zustimmen um die Bestellung auszuführen.");
       }
 
-      $request = file_get_contents("https://www.google.com/recaptcha/api/siteverify?secret=".$_POST["adkey_text_input"]);
+      $request = file_get_contents("https://www.google.com/recaptcha/api/siteverify?secret=&response=".$_POST["adkey_text_input"]);
       $request = json_decode($request);
         if($request->success == true){
             if($request->score >= 0.6){
@@ -132,11 +138,19 @@
 
             $days = $end_datetime - $startdate ;
 
-            if ($days <= 14) { //Stimmt noch nicht mit Client überein.
-              echo "Die Mindestdauer beträgt 14 Tage.";
+            if (($min_days != false && $days <= $min_days) || ($min_days == false && $days <= 1)) { //Ja okay geht eh nicht ins Minus und 1 sollte immer ferstgelegt werden.
+              echo "Die Mindestdauer beträgt ". $min_days ." Tage.";
               return 0;
             }
 
+            if ($max_days != false && $days >= $max_days) {
+              echo "Die Maximaledauer beträgt ". $max_days ." Tage.";
+              return 0;
+            }
+
+            if ($discount_days != false && $days >= $discount_days) {
+                $price = $discount_price;
+            }
 
             $jsone =[
                 //Daten von User-Input können zu lang sein.
@@ -146,7 +160,7 @@
                 'startdate'=> $startdate,
                 'enddate'=> $end_datetime,
                 'days'=> $days,
-                'price'=> round(20/(365/12)*$days, 2),
+                'price'=> round($price*$days, 2),
                 'paid'=> false,
             ];
 
@@ -157,13 +171,13 @@
                 <h1 style="color: green;">Wir haben deine Anfrage erhalten! </h1> <br> Wir senden dir in den nächsten Stunden eine Rechnung zu. <br> (Das dauert ertwas da wir keinen Zugriff auf die PayPal API haben bei einem Privatkonto und die Gebühren zu hoch
                 wären für ein Geschäftskonto.) <br> Du wirst jetzt als möglicher Käufer mit deinem Angbot angezeigt, wenn du diese bezahlst ist der Parkplatz nur noch für dich verfügbar und kein Anderer Nutzer kann einen Vorschlag für diesen Zeitraum stellen. <br>
                 <?php
-                echo ('Danke für deine Bestellung '.htmlspecialchars($_POST["name"]).'<br>'.'Wir senden dir in den nächsten Tagen eine Rechnung für die Tage die du bestellt hast an deine Email: '.htmlspecialchars($_POST["email"]));
-                break;
+                echo ('Danke ' . htmlspecialchars($_POST["name"]). ' für deine Bestellung für '. $days. " Tage zum Preis von ". $jsone['price'] . " Euro mit voraussichtlichen Ende zum " . (htmlspecialchars($_POST["end_datetime"])) . '<br>'.'Wir senden dir in den nächsten Tagen eine Rechnung für die Tage die du bestellt hast an deine Email: '.htmlspecialchars($_POST["email"]));
+                //mail('support@heldendesbildschirms.de', 'Neue Bestellung', 'Neue Bestellung für $days', 'From: Your name <heldendesbildschirm@gmail.com>');
+		break;
               } else {
-                //if ($i <= 2)
-                if ($i == 2)
+                if ($max_orders != false && $i == $max_orders)
                 {
-                  echo "Es sind 2 Bestellungen aufgegeben, aus diesem Grund bitten wir sie es später erneut zu versuchen.";
+                  echo "Es sind ". $i ." Bestellungen aufgegeben, aus diesem Grund bitten wir sie es später erneut zu versuchen.";
                   //break;
                 }
               }
@@ -182,8 +196,9 @@
         E-Mail (für PayPal Rechnung und Kontakt): <input type="email" value="" id="e-mail" name="email" placeholder="Email" required> <br>
         Name: <input type="text" name="name" placeholder="Name" required><br>
         Nummernschild: <input type="text" name="nummernschild" placeholder="Nummernschild" required><br>
-        Dauer: <!--  von: <input type="datetime-local" name="start_datetime" required> --> bis <input type="date" name="end_datetime" id="end_datetime" required> Mindestdauer 14 Tage, die Rechnung wird auf den ersten Tag nach der Rechnung angepasst. <br>
+        Dauer: <!--  von: <input type="datetime-local" name="start_datetime" required> --> bis <input type="date" name="end_datetime" id="end_datetime" required> Mindestdauer <?php if ($min_days != false) { echo $min_days. " Tage"; } else {echo "1 Tag";} ?>, die Rechnung wird auf den ersten Tag nach der Rechnung angepasst.  <?php if ($discount_days != false) { echo "<br> Ein Rabatt ist ab ".$discount_days." Tagen möglich."; } ?> <br>
         Kosten: Die Kosten sind bei <text id="price_output"> </text> Euro pro Tag die Kosten sind für dich also bei <text id="calc_price_output"> </text>. <br>
+        <text id="user_info_output"> </text> <br>
 
         <input type="hidden" value="" id="adkey_text_input" name="adkey_text_input"> <br>
         <label for="subscribe">Ich stimme zu, dass man mich über die angegebene E-Mail Kontakttieren darf.</label>
@@ -207,15 +222,36 @@
       }
 
       //var price = Math.round(20/(365/12) * 100 ) / 100;
-      var price = 20/(365/12);
+      var price = <?php echo $price ?>; //20/(365/12);
+      var discount_price = <?php if ($discount_days != false) { echo $discount_price; } else {echo $price;} ?>;
+      var min_days = <?php if ($min_days != false) { echo $min_days; } else {echo "false";} ?>;
+      var max_days = <?php if ($max_days != false) { echo $max_days; } else {echo "false";} ?>;
       function calcprice(days) {
-        var startdate = parseInt(Date.now() / 86400000);
+        var startdate = <?php echo (intval(time() / 86400)) ?>;//parseInt(Date.now() / 86400000);
         var days = Date.parse(document.getElementById('end_datetime').value) / 86400000 - startdate;
 
-        if (days >= 14) {
-          document.getElementById('calc_price_output').innerText = Math.round(days*price * 100 ) / 100  +" Euro für "+ days + " Tage " ;
+        document.getElementById('user_info_output').innerText = ("")
+
+        if (max_days != false && days >= max_days) {
+          document.getElementById('user_info_output').innerText = ("Fehler: " + "Die Maximaledauer beträgt "+ max_days +" Tage.");
+          return 0;
+        }
+
+        if ((min_days != false && days >= min_days) || (min_days == false && days >= 1)) {
+          if (days >= <?php echo $discount_days ?>) {
+            document.getElementById('calc_price_output').innerText = Math.round(days*discount_price * 100 ) / 100  +" Euro für "+ days + " Tage " ;
+            document.getElementById('price_output').innerText = Math.round(discount_price * 100 ) / 100;
+          }
+          else {
+            document.getElementById('calc_price_output').innerText = Math.round(days*price * 100 ) / 100  +" Euro für "+ days + " Tage " ;
+            document.getElementById('price_output').innerText = Math.round(price * 100 ) / 100;
+          }
         } else {
-          alert("Die Mindestdauer beträgt 14 Tage.");
+          if (min_days == false) {
+            document.getElementById('user_info_output').innerText = ("Fehler: " + "Die Mindestdauer beträgt einen Tag.");
+          } else {
+            document.getElementById('user_info_output').innerText = ("Fehler: " + "Die Mindestdauer beträgt " + min_days + " Tage.");
+          }
         }
       }
       document.getElementById('price_output').innerText = Math.round(price * 100 ) / 100;
